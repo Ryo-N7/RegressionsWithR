@@ -34,6 +34,15 @@ points(c(0, 1),
          mean(tango$Tango[tango$RU == 'P'])), pch = "-", cex = 4)
 # From graph: tratement group = avg higher values of Tango expression vs. NOT treatment
 
+tango %>% ggplot(aes(RU, Tango)) + 
+                 geom_point(aes(color = RU, shape = RU), size = 4) +
+                 theme(axis.text.x = element_text(face = "bold", size = 15)) +
+                 scale_shape_discrete(name = "Treatment \nCondition", labels = c("No Treatment", "Treatment")) +
+                 scale_color_discrete(name = "Treatment \nCondition", labels = c("No Treatment", "Treatment")) +
+                 scale_x_discrete(name = "Treatment Condition", labels = c("No Treatment", "Treatment"))
+# LEGEND IS REDUNDANT SO CAN JUST DELETE AS WELL WITH: legend.position = "none" in theme()
+
+
 tango %>% t.test(Tango ~ RU, data = .)
 # RU: treatment present 'P' or NOT present 'A'
 # Difference in group means: 0.71-1.01 = ~0.3
@@ -131,8 +140,6 @@ summary(m.tango2) # intercept: 0.70, slope = 0.3    SAME AS lm()
 # residual deviance: 
 # AIC: 
 
-tango %>% ggplot(aes(Genotype, Tango)) + geom_point()
-
 plot(as.numeric(tango$Genotype), tango$Tango)
 plot(tango$Genotype, tango$Tango)
 
@@ -147,6 +154,14 @@ plot(as.numeric(tango$Genotype), tango$Tango,
      col = c("red", "green")[tango$RU],
      pch = c("X", "O")[tango$RU])
 axis(1, 1:3, labels = levels(tango$Genotype), cex.axis = 1)
+
+tango %>% ggplot(aes(Genotype, Tango)) + 
+  geom_point(aes(color = RU, shape = RU), size = 4) +
+  theme(axis.text.x = element_text(face = "bold", size = 15)) +
+  scale_x_discrete(name = "Genotype", labels = c("UAS Arm", "ABeta", "RNAi")) +
+  scale_shape_discrete(name = "Treatment \nCondition", labels = c("No Treatment", "Treatment")) +
+  scale_color_discrete(name = "Treatment \nCondition", labels = c("No Treatment", "Treatment"))
+
 
 m.tango.gen.RU <- lm(Tango ~ Genotype + RU, data = tango) 
 summary(m.tango.gen.RU)
@@ -165,15 +180,6 @@ summary(m.tango.int)
 tango$Genotype <- relevel(tango$Genotype, ref = "UAS Arm")
 m.tango.int <- lm(Tango ~ Genotype*RU, data = tango)
 summary(m.tango.int) # from re-running, ABeta appears with UAS Arm as reference instead.
-
-
-
-
-
-
-
-
-
 
 
 
