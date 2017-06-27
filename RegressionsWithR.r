@@ -183,7 +183,164 @@ summary(m.tango.int) # from re-running, ABeta appears with UAS Arm as reference 
 
 
 
+# LOGISTIC REGRESSION #
+
+titanic
+View(titanic)
+str(titanic)
+table(titanic$survived)   # 0 = NOT Survive, 1 = Survived
+
+plot(titanic$survived)   # not very useful.....
+summary(titanic$age)     # avg age: 29.8, NA = 263..., Median = 28
+
+plot(jitter(titanic$age), jitter(titanic$survived))  # add noise to see more clusters...
+
+class(titanic$survived)   # as integer!
+titanic$survived <- factor(titanic$survived,
+                           levels = c(0, 1),
+                           labels = c("Not_Survive", "Survive"))
+class(titanic$survived)   # now as factor!
+
+table(titanic$survived)
+plot(titanic$age, titanic$survived)
+
+prop.table(table(titanic$survived))*100      # NOT = 61.8%, Survive = 38.1%
+tapply(titanic$age, titanic$survived, mean, na.rm = TRUE) 
+# NOT = 30.54 AGE, Survive = 28.9 AGE
+
+m.age <- glm(survived ~ age, data = titanic,
+             family = 'binomial')
+summary(m.age)
+# Coefficients: 
+# Age: p-value = 0.07, NOT significant
+# Z-vaule: distance of estimate from 0 in terms of s.e.
+
+exp(coef(m.age))        # intercept: 0.87, age = 0.99 
+# age: any unit change in age +1, odds of survival are the same (1)
+# odds ratio for survival for ex. age = 40 is the same for age = 41, etc.
+
+exp(confint(m.age))     # intercept: (0.656, 1.15), age: (0.983, 1.0007)
+
+# Practice #2:
+# explore variables: sex, age, fare, passenger class
+table(titanic$sex) # female = 466, male = 843
+hist(as.numeric(titanic$sex))    # fix the x-axis labels but yeah...
+
+class(titanic$sex)
+str(titanic$sex)
+titanic$sex <- factor(titanic$sex,
+                      levels = c(0, 1),
+                      labels = c("Female", "Male"))
+titanic$sex
+table(titanic$sex)
+prop.table(table(titanic$sex))
+
+plot(titanic$sex, titanic$survived) # Female: 35.6%, Male: 64.4% 
 
 
+titanic %>% ggplot(aes(x = sex, y = survived)) + 
+                  geom_histogram(stat = "identity")
+# Female survivors > Male survivors!
 
+prop.table(table(titanic$sex, titanic$survived), 1)*100 # proportions by row? or columns ',2'
+
+with(titanic,
+     table(sex, survived, pclass))
+
+pairs(~ survived + age + fare, data = titanic)
+
+m.AS <- glm(survived ~ age + sex, data = titanic, family = 'binomial')
+summary(m.AS)
+# Sex(Male): -2.46, p = 2e^-16, signif., Age = NOT significant.
+exp(coef(m.AS)) # age = 0.99 odds, sex(male) = 0.08 odds
+# odds of survival if male is VERY LOW 0.08 compared to female!
+# (1-0.08)*100 = 92%, Odds of survival for male is 92% LOWER than Female! :O
+exp(confint(m.AS))
+
+class(titanic$pclass)   # integer...
+m1 <- glm(survived ~ age + sex + factor(pclass) + fare, data = titanic,
+          family = 'binomial')
+summary(m1)    # ALL variables significant except 'fare'
+exp(coef(m1)) # age = 0.966 odds, sex(male) = 0.08 odds, pclass = 2: 0.28 odds,
+              # pclass = 3: 0.104 odds, fare: 1.000 odds
+
+# pclass = 2: -1.257, pclass = 3: -2.261
+# age: -0.03, sex(male): -2.493
+# (1-0.28)*100 = 72%, Odds of survival for passenger class = 2 is 72% lower than pclass = 1.
+# (1-0.104)*100 = 90%, Odds of survival for pclass = 3 is 90% lower than pclass = 1!
+
+m2 <- glm( survived ~ age + sex 
+           + factor(pclass),
+           data=titanic, 
+           family='binomial')
+summary(m2)
+
+
+m5 <- glm(survived ~ age * factor(pclass), data = titanic,
+          family = 'binomial')
+
+m6 <- glm(survived ~ sex * factor(pclass), data = titanic,
+          family = 'binomial')
+
+m7 <- glm(survived ~ sex + age + factor(pclass) + sex * age + sex * factor(pclass),
+          data = titanic,
+          family = 'binomial')
+
+exp(m7$coe) # sexmale*pclass = 3: compared to BASE female pclass = 1, odds of survival
+            # for male pclass = 3 is LOWER
+
+library(binomTools)
+
+
+m.rsq1 <- Rsq(m1)
+m.rsq2 <- Rsq(m2)
+
+
+## Ordinal Logistic Regression ##
+View(cd)
+cd$height <- factor(cd$height, levels = c(1, 2, 3),
+                    labels = c("bottom", "middle", "top"))
+cd$height
+table(cd$height)  # bottom: 764 flies, middle: 505 flies, top: 752 flies reach
+table(cd$genomic) # foxonull: 992 flies, wt: 1029 flies
+table(cd$genomic, cd$height)
+
+addmargins(prop.table(table(cd$genomic, cd$height), 1) * 100)
+# foxonull genotype = LESS likely to climb high compared to wt genotype
+library(ordinal)
+
+m <- clm(height ~ genomic, data = cd)
+
+summary(m)
+# genomic = wt: 1.52
+# odds of wt being in higher category = exp(1.52) = 4.57 (CI: 3.86, 5.43) times higher than for foxonull (p < 2e^-16)
+exp(m$coef)  # genomic = wt: 4.57 (as above) to climb higher compared to foxonull
+exp(confint(m)) # CI: (3.85, 5.43)
+# Threshold: 
+# Bottom: 552/(234+206) == 1.25, similar to bottom|middle = 1.234
+
+predict(m, type = 'prob')
+predict(m, type = 'prob', data.frame(genomic = 'wt')) # predict for genomic = wt
+# bottom: 0.21    middle: 0.25    top: 0.534
+predict(m, type = 'prob', data.frame(genomic = 'foxonull')) # predict for genomic = foxonull
+# bottom: 0.552   middle: 0.246   top: 0.200
+
+nominal_test(m)
+# loglikelihood.     insignificant. FAIL TO REJECT NULL. proportionality holds.
+
+# Exercise #3:
+table(cd$RU)   # treatment: 1033, NO treatment: 988
+table(cd$day)
+
+addmargins(prop.table(table(cd$RU, cd$height), 1) * 100)
+# with Treatment more likely to climb to the top!
+
+m2 <- clm(height ~ RU, data = cd)
+summary(m2)
+
+exp(m2$coef[3]) # odds of fly with Treatment being in higher category is 1.62 times higher than NO treatment
+
+m3 <- clm(height ~ factor(day), data = cd)
+summary(m3)
+exp(m3$coef[3])   # odds of fly with ^ day being in higher category is 0.95 times higher than less days
 
