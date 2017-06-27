@@ -344,3 +344,60 @@ m3 <- clm(height ~ factor(day), data = cd)
 summary(m3)
 exp(m3$coef[3])   # odds of fly with ^ day being in higher category is 0.95 times higher than less days
 
+
+## Poisson Regression ##
+View(fa)
+table(fa$Food)
+
+plot(as.numeric(fa$Food), fa$Sumfeeding, xaxt = "n")
+axis(1, 1:3, labels = levels(fa$Food), cex.axis = 2)
+
+tapply(fa$Sumfeeding, fa$Food, summary)
+# avg. # of feeders within food group: F-T1 = 31.75, F-T2 = 44.3, F-T3 = 36
+
+m <- glm(Sumfeeding ~ Food, data = fa, family = 'poisson')
+summary(m)  # AIC: 540
+# Food = 2: 0.33, exp(0.33) = 1.395, avg. RATE of feeding for FoodType = 2 is on avg. 1.395 HIGHER than FoodType = 1.
+# Same as above F-T2 = 44.3     /   F-T1 = 31.75   --->>> 1.395!
+
+# use offset to adjust for different group sizes!
+
+m2 <- glm(Sumfeeding ~ Food + Genotype, data = fa, family = 'poisson')
+summary(m2) # AIC: 507.88, decreased from adding Genotype into model!
+# Genotype = W: 0.248, exp(0.248) = 1.28, avg. RATE of feeding for Genotype = W is on avg. 1.28 HIGHER than Genotype = G69.
+
+m3 <- glm(Sumfeeding ~ Food*Genotype, data = fa, family = 'poisson')
+summary(m3)  # Intercept combined for all reference levels (in this case FT-1 and Genotype G69)
+# Genotype = W: 0.31437, exp(0.31437) = 1.369
+# avg. RATE of feeding for Genotype = W is on average 1.369 HIGHER than reference group (FT-1 and Genotype G69).
+
+
+# Negative Binomial #
+library(MASS)
+m.nb <- glm.nb(Sumfeeding ~ Genotype + Food, data = fa)
+summary(m.nb)
+# Tehta: 17.76, Std. Err.: 5.17
+
+
+# Survival/Cox Regression #
+names(lfs)  # day, event = 0 (censored obsv., fly didnt die duration of time), trial, genotype, RU
+
+addmargins(table(lfs$event))
+
+lfcO <- Surv(lfs$day, lfs$event, type = "right")
+class(lfcO)  # Surv
+m.surv.intercept <- survfit(lfcO ~ 1)
+plot(m.surv.intercept, pty = 's')  # overall survival curve
+
+plot(survfit(lfcO ~ 1, conf.type = 'none'))  # no CIs
+points(lfs$day[lfs$event == 0], lfs$event[lfs$event == 0])
+
+plot(survfit(lfcO ~ genotype, data = lfs, conf.type = 'none'), lty = 2:3)
+legend("bottomleft", legend = levels(lfs$genotype), lty = 2:3)
+
+m <- coxph(lfcO ~ genotype, data = lfs)
+summary(m)
+
+
+
+
